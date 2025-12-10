@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Search, MapPin, Phone } from "lucide-react"
 
 interface LeadListProps {
@@ -48,6 +49,8 @@ const stateLabels: Partial<Record<ConversationState, string>> = {
 export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("")
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [bulkMessage, setBulkMessage] = useState("")
 
   const filteredLeads = leads.filter(
     (lead) =>
@@ -87,14 +90,20 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
             .map((lead) => (
             <div
               key={lead.id}
-              onClick={() => onSelectLead(lead)}
               className={cn(
                 "cursor-pointer border-b border-border p-4 transition-colors hover:bg-muted/50",
                 selectedLead?.id === lead.id && "bg-muted",
               )}
             >
               <div className="mb-2 flex items-start justify-between">
-                <h3 className="font-medium text-foreground">{lead.name}</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!selected[lead.id]}
+                    onChange={(e) => setSelected((prev) => ({ ...prev, [lead.id]: e.target.checked }))}
+                  />
+                  <h3 className="font-medium text-foreground" onClick={() => onSelectLead(lead)}>{lead.name}</h3>
+                </div>
                 <Badge variant="secondary" className={cn("text-xs", stateColors[lead.conversation_state])}>
                   {stateLabels[lead.conversation_state]}
                 </Badge>
@@ -123,6 +132,56 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
             </div>
           ))
         )}
+      </div>
+      <div className="border-t border-border p-3">
+        <div className="flex items-center gap-2">
+          <Input placeholder="Bulk message" value={bulkMessage} onChange={(e) => setBulkMessage(e.target.value)} />
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const ids = Object.keys(selected).filter((id) => selected[id])
+              if (ids.length === 0) return
+              await fetch("/api/leads/bulk/actions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "bulk_sms", leadIds: ids, payload: { message: bulkMessage } }),
+              })
+              setBulkMessage("")
+            }}
+          >
+            Send SMS
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const ids = Object.keys(selected).filter((id) => selected[id])
+              if (ids.length === 0) return
+              await fetch("/api/leads/bulk/actions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "assign_closer", leadIds: ids }),
+              })
+              alert("Assigned to closer")
+            }}
+          >
+            Assign to Closer
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const ids = Object.keys(selected).filter((id) => selected[id])
+              if (ids.length === 0) return
+              await fetch("/api/leads/bulk/actions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "schedule_followup", leadIds: ids }),
+              })
+              alert("Follow-ups scheduled")
+            }}
+          >
+            Schedule Follow-ups
+          </Button>
+        </div>
       </div>
     </div>
   )

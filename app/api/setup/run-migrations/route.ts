@@ -41,6 +41,7 @@ export async function POST() {
       "015_alter_followup_reason_next.sql",
       "016_create_consents.sql",
       "017_alter_leads_consent.sql",
+      "018_create_call_summaries.sql",
     ]
 
     const executed: Record<string, boolean> = {}

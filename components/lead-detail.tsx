@@ -562,7 +562,22 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                       })
                       const data = await resp.json()
                       if (data.success && typeof data.estimate === "number") {
-                        setArv(String(Math.round(data.estimate)))
+                        const newArv = Math.round(data.estimate)
+                        setArv(String(newArv))
+                        const repairsNum = Number.parseFloat(repairs) || 0
+                        const offerAmount = newArv * 0.7 - repairsNum - 10000
+                        const updateResp = await fetch(`/api/leads/${lead.id}/update`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            arv: newArv,
+                            offer_amount: offerAmount,
+                          }),
+                        })
+                        const updateData = await updateResp.json()
+                        if (updateData.success && updateData.lead) {
+                          onLeadUpdated(updateData.lead as Lead)
+                        }
                       } else {
                         alert(data.error || "Lookup failed")
                       }
