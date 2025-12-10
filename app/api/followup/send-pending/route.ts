@@ -1,4 +1,4 @@
-import { getPendingFollowUps, markFollowUpAsSent } from "@/lib/followup-sequences"
+import { getPendingFollowUps, markFollowUpAsSent, markFollowUpFailed } from "@/lib/followup-sequences"
 import { sendSMS } from "@/lib/twilio"
 import { NextResponse } from "next/server"
 
@@ -24,10 +24,12 @@ export async function POST() {
         } else {
           failedCount++
           console.log(`[v0] Failed to send SMS: ${result.error}`)
+          await markFollowUpFailed(followUp.id, String(result.error || "unknown error"))
         }
       } catch (error) {
         failedCount++
         console.error(`[v0] Error sending follow-up to ${followUp.lead_name}:`, error)
+        await markFollowUpFailed(followUp.id, String(error))
       }
 
       // Add small delay between messages to avoid rate limits
