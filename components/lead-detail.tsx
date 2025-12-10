@@ -551,6 +551,28 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch("/api/property/value/combined", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ address: lead.address }),
+                      })
+                      const data = await resp.json()
+                      if (data.success && typeof data.estimate === "number") {
+                        setArv(String(Math.round(data.estimate)))
+                      } else {
+                        alert(data.error || "Lookup failed")
+                      }
+                    } catch {
+                      alert("Lookup failed")
+                    }
+                  }}
+                >
+                  Lookup Value
+                </Button>
                 <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.08)))}>Light</Button>
                 <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.15)))}>Medium</Button>
                 <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.25)))}>Heavy</Button>
