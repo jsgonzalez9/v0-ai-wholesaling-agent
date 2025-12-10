@@ -4,6 +4,7 @@ import { generateAgentResponse, getAgentConfig } from "@/lib/wholesaling-agent"
 import { sendSMS } from "@/lib/twilio"
 import { triggerVoiceCall } from "@/lib/voice-call-actions"
 import { notifyHotLead } from "@/lib/notify"
+import { deriveTagsFromMessage } from "@/lib/tagging"
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,6 +94,10 @@ export async function POST(request: NextRequest) {
     // Update lead with extracted information
     if (Object.keys(response.updatedLead).length > 0) {
       await updateLead(lead.id, response.updatedLead)
+    }
+    const newTags = deriveTagsFromMessage(body)
+    if (newTags.length > 0) {
+      await updateLead(lead.id, { tags: Array.from(new Set([...(lead.tags || []), ...newTags])) })
     }
 
     // Update conversation state if changed

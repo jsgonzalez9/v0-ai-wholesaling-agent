@@ -38,6 +38,7 @@ export async function POST() {
       "012_alter_leads_mortgage.sql",
       "013_create_conversation_summaries.sql",
       "014_create_property_photos.sql",
+      "015_alter_followup_reason_next.sql",
     ]
 
     const executed: Record<string, boolean> = {}

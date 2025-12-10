@@ -339,6 +339,12 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                 {markingSigned ? "Marking..." : "Mark Signed"}
               </Button>
             )}
+            <a href={`/deals/summary/${lead.id}`} className="inline-flex items-center">
+              <Button variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                Deal Summary PDF
+              </Button>
+            </a>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="icon">

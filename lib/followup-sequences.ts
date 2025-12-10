@@ -55,7 +55,10 @@ const FOLLOWUP_MESSAGES = [
   },
 ]
 
-export async function scheduleFollowUpSequence(leadId: string): Promise<{ success: boolean; error?: string }> {
+export async function scheduleFollowUpSequence(
+  leadId: string,
+  meta?: { reason?: string; next_action?: string },
+): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
 
   try {
@@ -79,6 +82,8 @@ export async function scheduleFollowUpSequence(leadId: string): Promise<{ succes
         status: "pending",
         attempts: 0,
         next_attempt_at: null,
+        reason: meta?.reason || null,
+        next_action: meta?.next_action || null,
       }
     })
 
