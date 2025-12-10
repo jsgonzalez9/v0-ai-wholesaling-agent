@@ -3,6 +3,7 @@ import { getLeadByPhone, saveMessage, updateLead } from "@/lib/lead-actions"
 import { generateAgentResponse, getAgentConfig } from "@/lib/wholesaling-agent"
 import { sendSMS } from "@/lib/twilio"
 import { triggerVoiceCall } from "@/lib/voice-call-actions"
+import { notifyHotLead } from "@/lib/notify"
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,6 +119,16 @@ export async function POST(request: NextRequest) {
           console.error(`[Voice Call Error] Failed to trigger call for lead ${lead.id}:`, error)
         }
       }
+    }
+
+    const hotStates = new Set(["offer_made", "offer_accepted", "contract_sent", "ready_for_offer_call", "warm_call_requested", "schedule_call"])
+    const becameHot =
+      response.escalated ||
+      (response.newState && hotStates.has(response.newState)) ||
+      (response.callIntent?.lead_status && hotStates.has(response.callIntent.lead_status))
+    if (becameHot) {
+      await updateLead(lead.id, { pipeline_status: "HOT", score: 5 })
+      await notifyHotLead({ id: lead.id, name: lead.name, phone_number: lead.phone_number, address: lead.address })
     }
 
     // Send the response via Twilio
