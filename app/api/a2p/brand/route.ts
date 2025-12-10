@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { submitBrandToTwilio } from "@/lib/a2p"
 
 export async function POST(request: Request) {
   try {
@@ -19,6 +20,22 @@ export async function POST(request: Request) {
       .select()
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const twilioEnabled = process.env.TWILIO_A2P_ENABLED === "true"
+    if (twilioEnabled) {
+      const res = await submitBrandToTwilio(payload)
+      await supabase
+        .from("a2p_brands")
+        .update({ provider_id: res.provider_id || null, submission_status: res.status || "submitted" })
+        .eq("id", data.id)
+      await supabase.from("a2p_logs").insert({
+        entity_type: "brand",
+        entity_id: data.id,
+        level: res.error ? "error" : "info",
+        message: res.error ? "Brand submission error" : "Brand submitted to Twilio",
+        meta: res,
+      })
+    }
 
     await supabase.from("a2p_logs").insert({
       entity_type: "brand",
