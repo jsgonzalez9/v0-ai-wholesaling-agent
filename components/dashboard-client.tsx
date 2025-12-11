@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Lead } from "@/lib/types"
 import { LeadList } from "@/components/lead-list"
 import { LeadDetail } from "@/components/lead-detail"
@@ -29,6 +29,17 @@ export function DashboardClient({ initialLeads }: DashboardClientProps) {
     ).length,
     pending: leads.filter((l) => ["offer_made", "contract_sent"].includes(l.conversation_state)).length,
   }
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const id = params.get("lead")
+      if (id) {
+        const found = initialLeads.find((l) => l.id === id) || null
+        if (found) setSelectedLead(found)
+      }
+    } catch {}
+  }, [])
 
   const handleLeadAdded = (newLead: Lead) => {
     setLeads((prev) => [newLead, ...prev])
