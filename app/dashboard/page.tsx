@@ -1,5 +1,6 @@
 import { getAllLeads, checkDatabaseSetup } from "@/lib/lead-actions"
 import { DashboardClient } from "@/components/dashboard-client"
+import AuthBar from "@/components/auth-bar"
 import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
@@ -13,5 +14,10 @@ export default async function DashboardPage() {
 
   const leads = await getAllLeads()
 
-  return <DashboardClient initialLeads={leads} />
+  return (
+    <>
+      <AuthBar />
+      <DashboardClient initialLeads={leads} />
+    </>
+  )
 }
