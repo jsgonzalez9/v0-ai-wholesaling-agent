@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendSMS, getTwilioClient, eligibleNumbersSorted } from "@/lib/twilio"
 
-async function runOnce() {
+export async function runOnce() {
   const supabase = await createClient()
   const now = new Date().toISOString()
   const { data: enrollments } = await supabase
@@ -85,4 +85,11 @@ export async function GET() {
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Runner failed" }, { status: 500 })
   }
+}
+
+export const runtime = "nodejs"
+export const schedule = "*/1 * * * *"
+export default async function handler() {
+  await runOnce()
+  return NextResponse.json({ success: true })
 }
