@@ -53,7 +53,7 @@ async function chooseFromNumber(): Promise<string | null> {
   }
 }
 
-async function eligibleNumbersSorted(): Promise<string[]> {
+export async function eligibleNumbersSorted(): Promise<string[]> {
   const pool = twilioNumberPool.length > 0 ? twilioNumberPool : (twilioPhoneNumber ? [twilioPhoneNumber] : [])
   if (pool.length === 0) return []
   try {

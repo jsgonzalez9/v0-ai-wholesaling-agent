@@ -63,6 +63,10 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   const [followNextAction, setFollowNextAction] = useState("")
   const [callSummaries, setCallSummaries] = useState<any[]>([])
   const [loadingCalls, setLoadingCalls] = useState(false)
+  const [allSequences, setAllSequences] = useState<any[]>([])
+  const [selectedSequenceId, setSelectedSequenceId] = useState<string>("")
+  const [enrollments, setEnrollments] = useState<any[]>([])
+  const [enrollmentSteps, setEnrollmentSteps] = useState<any[]>([])
 
   useEffect(() => {
     loadMessages()
@@ -111,6 +115,32 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
 
   useEffect(() => {
     loadCallSummaries()
+  }, [lead.id])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const resp = await fetch("/api/sequences")
+        const j = await resp.json()
+        setAllSequences(j.sequences || [])
+      } catch {}
+    })()
+  }, [])
+
+  async function loadLeadSequences() {
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}/sequences`)
+      const j = await resp.json()
+      setEnrollments(j.enrollments || [])
+      setEnrollmentSteps(j.steps || [])
+    } catch {
+      setEnrollments([])
+      setEnrollmentSteps([])
+    }
+  }
+
+  useEffect(() => {
+    loadLeadSequences()
   }, [lead.id])
 
   async function handleSendOutreach() {
@@ -678,6 +708,60 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4" />
+                Follow-Up Sequences (Builder)
+              </CardTitle>
+              <CardDescription>Enroll in a custom sequence</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedSequenceId}
+                  onChange={(e) => setSelectedSequenceId(e.target.value)}
+                  className="w-full rounded border border-border bg-background p-2 text-sm"
+                >
+                  <option value="">Select sequence</option>
+                  {allSequences.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (!selectedSequenceId) return
+                    await fetch(`/api/leads/${lead.id}/sequences`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ sequenceId: selectedSequenceId }),
+                    })
+                    loadLeadSequences()
+                  }}
+                >
+                  Enroll Lead
+                </Button>
+              </div>
+              {enrollments.length > 0 && (
+                <div className="rounded border border-border p-2">
+                  <p className="text-xs text-muted-foreground">
+                    Active: {enrollments[0].sequence_id} • Step {enrollments[0].current_step_index} • Next{" "}
+                    {enrollments[0].next_run_at ? new Date(enrollments[0].next_run_at).toLocaleString() : "-"}
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {enrollmentSteps.map((st) => (
+                      <div key={st.id} className="text-xs text-muted-foreground">
+                        Step {st.step_index} • {st.status} • {new Date(st.sent_at).toLocaleString()}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

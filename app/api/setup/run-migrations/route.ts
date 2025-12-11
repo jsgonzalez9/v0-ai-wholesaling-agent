@@ -43,6 +43,7 @@ export async function POST() {
       "017_alter_leads_consent.sql",
       "018_create_call_summaries.sql",
       "019_alter_call_summaries_details.sql",
+      "020_create_sequences.sql",
     ]
 
     const executed: Record<string, boolean> = {}
