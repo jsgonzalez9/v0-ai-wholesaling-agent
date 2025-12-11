@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS leads (
   contract_link TEXT,
   last_message_at TIMESTAMPTZ,
   follow_up_count INTEGER DEFAULT 0,
+  pipeline_status TEXT DEFAULT 'NEW' CHECK (pipeline_status IN ('NEW','WARM','HOT','DEAD','FOLLOW-UP')),
+  tags TEXT[],
+  score INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

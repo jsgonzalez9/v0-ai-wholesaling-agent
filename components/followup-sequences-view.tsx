@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getLeadFollowUpSequence } from "@/lib/followup-sequences"
+ 
 import type { Lead } from "@/lib/types"
 
 interface FollowUpItem {
@@ -34,8 +34,11 @@ export function FollowUpSequencesView({ lead }: { lead: Lead }) {
 
   useEffect(() => {
     async function loadSequences() {
-      const data = await getLeadFollowUpSequence(lead.id)
-      setSequences(data)
+      try {
+        const resp = await fetch(`/api/leads/${lead.id}/followup-sequences`)
+        const data = await resp.json()
+        setSequences((data.sequences || []) as FollowUpItem[])
+      } catch {}
       setLoading(false)
     }
 

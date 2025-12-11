@@ -1,0 +1,2 @@
+ALTER TABLE leads
+  ADD COLUMN IF NOT EXISTS mortgage_owed DECIMAL(12, 2);

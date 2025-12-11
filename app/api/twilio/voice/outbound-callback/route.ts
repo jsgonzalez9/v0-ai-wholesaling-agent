@@ -2,12 +2,28 @@ import { type NextRequest, NextResponse } from "next/server"
 import twilio from "twilio"
 import { getLeadById } from "@/lib/lead-actions"
 import { updateCall, addCallEvent } from "@/lib/voice-call-actions"
+import { validateTwilioRequest } from "@/lib/twilio"
 
 const VoiceResponse = twilio.twiml.VoiceResponse
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
+    const signature = request.headers.get("x-twilio-signature") || ""
+    const params: Record<string, string> = {}
+    for (const [key, value] of formData.entries()) {
+      params[key] = String(value)
+    }
+
+    const valid = validateTwilioRequest(signature, request.url, params)
+    if (!valid) {
+      const twiml = new VoiceResponse()
+      twiml.hangup()
+      return new NextResponse(twiml.toString(), {
+        status: 403,
+        headers: { "Content-Type": "text/xml" },
+      })
+    }
     const callId = request.nextUrl.searchParams.get("call_id") as string
     const leadId = request.nextUrl.searchParams.get("lead_id") as string
     const callStatus = formData.get("CallStatus") as string
@@ -39,26 +55,10 @@ export async function POST(request: NextRequest) {
     const twiml = new VoiceResponse()
 
     if (callStatus === "no-answer" || callStatus === "failed") {
-      // Leave voicemail option
-      twiml.say(
-        `Hi ${lead.name}, this is a callback from Property Direct Cash. We'd love to discuss your property. Please call us back at ${process.env.TWILIO_PHONE_NUMBER}`,
-      )
+      twiml.say(`Please call us back at ${process.env.TWILIO_PHONE_NUMBER}`)
     } else {
-      // Greeting for answered call
-      twiml.say(
-        `Hi ${lead.name}, thanks for picking up! I'm calling from Property Direct Cash to discuss your property at ${lead.address}.`,
-      )
-
-      // Gather speech
-      const gather = twiml.gather({
-        timeout: 3,
-        action: `/api/twilio/voice/handle-input?call_id=${callId}&lead_id=${leadId}`,
-        method: "POST",
-        speechTimeout: "auto",
-        language: "en-US",
-      })
-
-      gather.say("Are you open to selling your property?")
+      const mediaUrl = `${process.env.NEXT_PUBLIC_MEDIA_WS_URL}?call_id=${callId}&lead_id=${leadId}`
+      twiml.connect().stream({ url: mediaUrl })
     }
 
     return new NextResponse(twiml.toString(), {

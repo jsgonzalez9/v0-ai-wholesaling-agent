@@ -100,6 +100,17 @@ export async function addCallEvent(callId: string, eventType: string, eventData:
   }
 }
 
+export async function getCallById(callId: string): Promise<VoiceCall | null> {
+  try {
+    const { data, error } = await supabase.from("calls").select("*").eq("id", callId).single()
+    if (error || !data) return null
+    return data as VoiceCall
+  } catch (error) {
+    console.error("[Voice Calls] Get by id error:", error)
+    return null
+  }
+}
+
 export async function triggerVoiceCall(
   leadId: string,
   callIntentStatus: string,

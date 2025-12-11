@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import type { Lead, Message, AgentConfig, CallIntentAction } from "@/lib/types"
+import OpenAI from "openai"
 
 const NODE_A_SYSTEM_PROMPT = `You are the Lead Outreach Agent for a real estate wholesaling company. 
 Your goal is to qualify leads via SMS: gather property condition, motivation, timeline, and price expectations. 
@@ -186,48 +187,25 @@ export interface AgentResponse {
   message: string
   updatedLead: Partial<Lead>
   newState?: Lead["conversation_state"]
-  modelUsed: "gpt-5-mini" | "gpt-5"
+  modelUsed: "gpt-5.1"
   escalated: boolean
-  callIntent?: CallIntentAction // Add call intent detection result
+  callIntent?: CallIntentAction
 }
 
-async function callAbacusAI(
-  systemPrompt: string,
-  userPrompt: string,
-  model: "gpt-5-mini" | "gpt-5" = "gpt-5-mini",
-): Promise<string> {
-  const url = "https://routellm.abacus.ai/v1/chat/completions"
-  const apiKey = process.env.ABACUS_API_KEY
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-  if (!apiKey) {
-    throw new Error("ABACUS_API_KEY environment variable is not set")
-  }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      stream: false,
-      max_tokens: model === "gpt-5" ? 1500 : 1000, // More tokens for complex negotiations
-      temperature: model === "gpt-5" ? 0.6 : 0.7, // Slightly lower temp for negotiations
-    }),
+async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<{ text: string; usage?: any }> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.1",
+    max_tokens: 800,
+    temperature: 0.7,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Abacus AI API error: ${response.status} - ${errorText}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0]?.message?.content || ""
+  const text = response.choices[0]?.message?.content || ""
+  return { text, usage: response.usage }
 }
 
 export async function getAgentConfig(): Promise<AgentConfig> {
@@ -243,6 +221,8 @@ export async function getAgentConfig(): Promise<AgentConfig> {
       arv_multiplier: 0.7,
       follow_up_hours: 24,
       max_follow_ups: 3,
+      followup_backoff_minutes: 15,
+      followup_max_attempts: 3,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -281,9 +261,9 @@ export async function generateAgentResponse(
   const conversationHistory = await getConversationHistory(lead.id)
 
   const shouldEscalate = shouldEscalateToNodeB(incomingMessage, lead.conversation_state)
-  const model: "gpt-5-mini" | "gpt-5" = shouldEscalate ? "gpt-5" : "gpt-5-mini"
   const systemPrompt = shouldEscalate ? NODE_B_SYSTEM_PROMPT : NODE_A_SYSTEM_PROMPT
 
+  const tone = lead.pipeline_status === "HOT" ? "closer, professional, concise" : "friendly, helpful, concise"
   const leadContext = `
 LEAD INFORMATION:
 - Name: ${lead.name}
@@ -294,6 +274,7 @@ LEAD INFORMATION:
 - Motivation: ${lead.motivation || "Unknown"}
 - Timeline: ${lead.timeline || "Unknown"}
 - Price Expectation: ${lead.price_expectation ? `$${lead.price_expectation.toLocaleString()}` : "Unknown"}
+- Mortgage Owed: ${typeof lead.mortgage_owed === "number" ? `$${lead.mortgage_owed.toLocaleString()}` : "Unknown"}
 - ARV (if available): ${lead.arv ? `$${lead.arv.toLocaleString()}` : "Not yet determined"}
 - Repair Estimate: ${lead.repair_estimate ? `$${lead.repair_estimate.toLocaleString()}` : "Not yet determined"}
 - Offer Amount: ${lead.offer_amount ? `$${lead.offer_amount.toLocaleString()}` : "Not yet made"}
@@ -303,6 +284,8 @@ COMPANY CONFIG:
 - Company Name: ${config.company_name}
 - Wholesaling Fee: $${config.wholesaling_fee.toLocaleString()}
 - ARV Multiplier: ${config.arv_multiplier}
+ 
+TONE: ${tone}
 `
 
   const conversationContext = conversationHistory
@@ -356,7 +339,7 @@ ${conversationContext || "No previous messages"}
 LATEST MESSAGE FROM SELLER:
 ${incomingMessage}
 
-Generate an appropriate SMS response to qualify this lead. Focus on gathering information about property condition, motivation, timeline, and price expectations.
+Generate an appropriate SMS response to qualify this lead. Focus on gathering information about property condition, motivation, timeline, price expectations, and mortgage owed if mentioned.
 
 Also analyze call intent - the seller may be hinting they want to talk on the phone instead of text.
 
@@ -372,14 +355,15 @@ Respond in JSON format:
     "propertyCondition": "extracted or null",
     "motivation": "extracted or null",
     "timeline": "extracted or null",
-    "priceExpectation": "number or null"
+    "priceExpectation": "number or null",
+    "mortgageOwed": "number or null"
   },
   "suggestedState": "new state or null",
   "shouldMakeOffer": true/false,
   "needsEscalation": true/false
 }`
 
-  const text = await callAbacusAI(systemPrompt, prompt, model)
+  const { text } = await callOpenAI(systemPrompt, prompt)
 
   let parsed
   try {
@@ -420,15 +404,23 @@ Respond in JSON format:
     newState = parsed.suggestedState
   }
 
+  if (parsed.extractedInfo?.mortgageOwed) {
+    updatedLead.mortgage_owed = Number(parsed.extractedInfo.mortgageOwed)
+  }
+
   const callIntent: CallIntentAction = parsed.callIntent || { action: "none" }
+
+  if ((parsed.shouldMakeOffer || parsed.readyForContract) && lead.arv && lead.repair_estimate) {
+    updatedLead.offer_amount = calculateMAO(lead.arv, lead.repair_estimate, config.wholesaling_fee, config.arv_multiplier)
+  }
 
   return {
     message: parsed.smsResponse,
     updatedLead,
     newState,
-    modelUsed: model,
+    modelUsed: "gpt-5.1",
     escalated: shouldEscalate,
-    callIntent, // Include call intent in response
+    callIntent,
   }
 }
 

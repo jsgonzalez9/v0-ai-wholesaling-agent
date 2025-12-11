@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 
@@ -10,7 +11,7 @@ export async function POST() {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return Response.json({ success: false, error: "Missing Supabase credentials" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Missing Supabase credentials" }, { status: 400 })
     }
 
     const supabase = createServerClient(supabaseUrl, supabaseServiceKey, {
@@ -27,6 +28,23 @@ export async function POST() {
       "002_create_messages_table.sql",
       "003_create_agent_config_table.sql",
       "004_add_model_tracking.sql",
+      "005_create_call_tracking.sql",
+      "006_create_followup_sequences.sql",
+      "007_create_sms_events.sql",
+      "008_alter_leads_optout.sql",
+      "009_create_a2p_tables.sql",
+      "010_alter_followup_queue.sql",
+      "011_alter_agent_config_followup.sql",
+      "012_alter_leads_mortgage.sql",
+      "013_create_conversation_summaries.sql",
+      "014_create_property_photos.sql",
+      "015_alter_followup_reason_next.sql",
+      "016_create_consents.sql",
+      "017_alter_leads_consent.sql",
+      "018_create_call_summaries.sql",
+      "019_alter_call_summaries_details.sql",
+      "020_create_sequences.sql",
+      "021_alter_lead_sequences_retry.sql",
     ]
 
     const executed: Record<string, boolean> = {}
@@ -58,9 +76,9 @@ export async function POST() {
       }
     }
 
-    return Response.json({ success: true, executed })
+    return NextResponse.json({ success: true, executed })
   } catch (error) {
     console.error("[v0] Migration error:", error)
-    return Response.json({ success: false, error: "Failed to run migrations", executed: {} }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to run migrations", executed: {} }, { status: 500 })
   }
 }

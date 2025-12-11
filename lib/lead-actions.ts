@@ -121,7 +121,7 @@ export async function saveMessage(data: {
   direction: "inbound" | "outbound"
   content: string
   twilio_sid?: string
-  model_used?: "gpt-5-mini" | "gpt-5" | null
+  model_used?: Message["model_used"]
   was_escalated?: boolean
 }): Promise<{ message: Message | null; error: string | null }> {
   const supabase = await createClient()

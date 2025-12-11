@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
           arv_multiplier: body.arv_multiplier,
           follow_up_hours: body.follow_up_hours,
           max_follow_ups: body.max_follow_ups,
+          followup_backoff_minutes: body.followup_backoff_minutes ?? 15,
+          followup_max_attempts: body.followup_max_attempts ?? 3,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
         arv_multiplier: body.arv_multiplier,
         follow_up_hours: body.follow_up_hours,
         max_follow_ups: body.max_follow_ups,
+        followup_backoff_minutes: body.followup_backoff_minutes ?? 15,
+        followup_max_attempts: body.followup_max_attempts ?? 3,
       })
 
       if (error) {

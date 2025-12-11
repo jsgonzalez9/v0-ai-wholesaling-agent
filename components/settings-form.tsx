@@ -19,7 +19,21 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
     arv_multiplier: initialConfig?.arv_multiplier?.toString() || "0.70",
     follow_up_hours: initialConfig?.follow_up_hours?.toString() || "24",
     max_follow_ups: initialConfig?.max_follow_ups?.toString() || "3",
+    followup_backoff_minutes: (initialConfig as any)?.followup_backoff_minutes?.toString() || "15",
+    followup_max_attempts: (initialConfig as any)?.followup_max_attempts?.toString() || "3",
   })
+  const [health, setHealth] = useState<Record<string, number>>({})
+  const [loadingHealth, setLoadingHealth] = useState(false)
+
+  async function loadHealth() {
+    setLoadingHealth(true)
+    try {
+      const resp = await fetch("/api/sms/health")
+      const data = await resp.json()
+      if (data.success) setHealth(data.perNumber || {})
+    } catch {}
+    setLoadingHealth(false)
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -33,6 +47,8 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
           arv_multiplier: Number.parseFloat(config.arv_multiplier),
           follow_up_hours: Number.parseInt(config.follow_up_hours),
           max_follow_ups: Number.parseInt(config.max_follow_ups),
+          followup_backoff_minutes: Number.parseInt(config.followup_backoff_minutes),
+          followup_max_attempts: Number.parseInt(config.followup_max_attempts),
         }),
       })
       const data = await response.json()
@@ -128,6 +144,28 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
             />
             <p className="mt-1 text-sm text-muted-foreground">Maximum follow-up messages per lead</p>
           </div>
+          <div>
+            <Label htmlFor="followup_backoff_minutes">Backoff Minutes</Label>
+            <Input
+              id="followup_backoff_minutes"
+              type="number"
+              value={config.followup_backoff_minutes}
+              onChange={(e) => setConfig((prev) => ({ ...prev, followup_backoff_minutes: e.target.value }))}
+              placeholder="15"
+            />
+            <p className="mt-1 text-sm text-muted-foreground">Minutes to wait before retrying failed follow-up</p>
+          </div>
+          <div>
+            <Label htmlFor="followup_max_attempts">Max Retry Attempts</Label>
+            <Input
+              id="followup_max_attempts"
+              type="number"
+              value={config.followup_max_attempts}
+              onChange={(e) => setConfig((prev) => ({ ...prev, followup_max_attempts: e.target.value }))}
+              placeholder="3"
+            />
+            <p className="mt-1 text-sm text-muted-foreground">Max retries per follow-up message</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -141,10 +179,39 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
             <p>TWILIO_ACCOUNT_SID=your_account_sid</p>
             <p>TWILIO_AUTH_TOKEN=your_auth_token</p>
             <p>TWILIO_PHONE_NUMBER=+1234567890</p>
+            <p>TWILIO_NUMBER_POOL=+15551230001,+15551230002,+15551230003</p>
+            <p>SMS_MONTHLY_LIMIT_PER_NUMBER=10000</p>
+            <p>SMS_RATE_LIMIT_PER_MIN=25</p>
+            <p>SMS_QUIET_HOURS_START=8</p>
+            <p>SMS_QUIET_HOURS_END=21</p>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             Set your Twilio webhook URL to: <code className="rounded bg-muted px-1">/api/twilio/incoming</code>
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Phone Provider Health</CardTitle>
+          <CardDescription>Last-hour sends per number to monitor rate limiting</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={loadHealth} disabled={loadingHealth}>
+            {loadingHealth ? "Loading..." : "Load Health"}
+          </Button>
+          <div className="mt-3 space-y-2 font-mono text-sm">
+            {Object.keys(health).length === 0 ? (
+              <p className="text-muted-foreground">No data yet</p>
+            ) : (
+              Object.entries(health).map(([from, count]) => (
+                <div key={from} className="flex items-center justify-between">
+                  <span>{from}</span>
+                  <span>{count}</span>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

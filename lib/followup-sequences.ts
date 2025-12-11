@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getAgentConfig } from "@/lib/wholesaling-agent"
 
 // 12-message SMS follow-up sequence for wholesaling
 const FOLLOWUP_MESSAGES = [
@@ -54,7 +55,10 @@ const FOLLOWUP_MESSAGES = [
   },
 ]
 
-export async function scheduleFollowUpSequence(leadId: string): Promise<{ success: boolean; error?: string }> {
+export async function scheduleFollowUpSequence(
+  leadId: string,
+  meta?: { reason?: string; next_action?: string },
+): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
 
   try {
@@ -76,6 +80,10 @@ export async function scheduleFollowUpSequence(leadId: string): Promise<{ succes
         sequence_number: index + 1,
         scheduled_for: scheduledDate.toISOString(),
         status: "pending",
+        attempts: 0,
+        next_attempt_at: null,
+        reason: meta?.reason || null,
+        next_action: meta?.next_action || null,
       }
     })
 
@@ -101,11 +109,14 @@ export async function getPendingFollowUps(limit = 50): Promise<
     sequence_number: number
     message: string
     scheduled_for: string
+    attempts: number
   }>
 > {
   const supabase = await createClient()
 
   const now = new Date().toISOString()
+  const agentCfg = await getAgentConfig()
+  const maxAttempts = Number(agentCfg.followup_max_attempts ?? process.env.FOLLOWUP_MAX_ATTEMPTS ?? 3)
 
   const { data, error } = await supabase
     .from("follow_up_sequences")
@@ -115,11 +126,15 @@ export async function getPendingFollowUps(limit = 50): Promise<
       lead_id,
       sequence_number,
       scheduled_for,
+      attempts,
+      next_attempt_at,
       leads(name, phone_number, address)
     `,
     )
     .eq("status", "pending")
     .lte("scheduled_for", now)
+    .lt("attempts", maxAttempts)
+    .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
     .limit(limit)
     .order("scheduled_for", { ascending: true })
 
@@ -138,6 +153,7 @@ export async function getPendingFollowUps(limit = 50): Promise<
     sequence_number: item.sequence_number,
     message: FOLLOWUP_MESSAGES[item.sequence_number - 1].message.replace("[ADDRESS]", item.leads?.address || ""),
     scheduled_for: item.scheduled_for,
+    attempts: item.attempts || 0,
   }))
 }
 
@@ -183,4 +199,32 @@ export async function getLeadFollowUpSequence(leadId: string) {
   }
 
   return data || []
+}
+
+export async function markFollowUpFailed(sequenceId: string, errMsg: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+  const agentCfg = await getAgentConfig()
+  const backoffMinutes = Number(agentCfg.followup_backoff_minutes ?? process.env.FOLLOWUP_BACKOFF_MINUTES ?? 15)
+  const next = new Date()
+  next.setMinutes(next.getMinutes() + backoffMinutes)
+  const { error } = await supabase
+    .from("follow_up_sequences")
+    .update({
+      attempts: (supabase as any).rpc ? undefined : undefined, // placeholder, we will increment via fetch-update
+      next_attempt_at: next.toISOString(),
+      error_last: errMsg,
+    })
+    .eq("id", sequenceId)
+  if (error) {
+    // Fallback: read and update attempts manually
+    const { data } = await supabase.from("follow_up_sequences").select("attempts").eq("id", sequenceId).single()
+    const attempts = ((data as any)?.attempts || 0) + 1
+    const { error: e2 } = await supabase
+      .from("follow_up_sequences")
+      .update({ attempts, next_attempt_at: next.toISOString(), error_last: errMsg })
+      .eq("id", sequenceId)
+    if (e2) return { success: false, error: e2.message }
+    return { success: true }
+  }
+  return { success: true }
 }

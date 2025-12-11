@@ -1,0 +1,6 @@
+ALTER TABLE call_summaries
+  ADD COLUMN IF NOT EXISTS objections TEXT,
+  ADD COLUMN IF NOT EXISTS pain_points TEXT,
+  ADD COLUMN IF NOT EXISTS decision_maker TEXT,
+  ADD COLUMN IF NOT EXISTS motivation INTEGER,
+  ADD COLUMN IF NOT EXISTS next_action TEXT;

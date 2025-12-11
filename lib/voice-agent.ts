@@ -54,13 +54,14 @@ export async function generateVoiceResponse(
   shouldEndCall: boolean
   updatedLead: Partial<Lead>
   nextAction: string
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
 }> {
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-5.1",
       max_tokens: 150,
-      system: VOICE_AGENT_SYSTEM_PROMPT,
       messages: [
+        { role: "system", content: VOICE_AGENT_SYSTEM_PROMPT },
         {
           role: "user",
           content: `Lead: ${lead.name}
@@ -106,6 +107,7 @@ Generate a natural, short voice response. Keep it conversational and friendly.`,
       shouldEndCall,
       updatedLead,
       nextAction: shouldEndCall ? "end_call" : "continue",
+      usage: response.usage as any,
     }
   } catch (error) {
     console.error("[Voice Agent] Error generating response:", error)
@@ -125,9 +127,10 @@ export async function extractCallInsights(
 }> {
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-5.1",
       max_tokens: 500,
       messages: [
+        { role: "system", content: "You extract structured insights from call transcripts for real estate wholesaling conversations." },
         {
           role: "user",
           content: `Analyze this call transcript between an AI agent and a property owner:

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
@@ -47,9 +48,9 @@ export async function GET() {
       executed["004_add_model_tracking.sql"] = false
     }
 
-    return Response.json({ executed })
+    return NextResponse.json({ executed })
   } catch (error) {
     console.error("[v0] Setup check error:", error)
-    return Response.json({ executed: {} }, { status: 500 })
+    return NextResponse.json({ executed: {} }, { status: 500 })
   }
 }

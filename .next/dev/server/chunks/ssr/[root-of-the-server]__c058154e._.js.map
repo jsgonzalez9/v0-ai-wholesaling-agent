@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///Users/hector/Desktop/WHOLESALE%20AI/v0-ai-wholesaling-agent/app/page.tsx"],"sourcesContent":["import { redirect } from \"next/navigation\"\n\nexport default function Home() {\n  redirect(\"/dashboard\")\n}\n"],"names":[],"mappings":";;;;AAAA;AAAA;;AAEe,SAAS;IACtB,IAAA,waAAQ,EAAC;AACX"}}]
+}
