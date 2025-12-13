@@ -224,11 +224,18 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
           <div className="flex items-center gap-2">
             <input id="tpl-file" type="file" accept="application/pdf" />
             <Input id="tpl-name" placeholder="Template name" />
+            <select id="tpl-role" className="rounded border border-border bg-background p-2 text-sm">
+              <option value="seller">Seller</option>
+              <option value="buyer">Buyer</option>
+            </select>
+            <Input id="tpl-state" placeholder="State (e.g. TX)" className="w-24" />
             <Button
               variant="outline"
               onClick={async () => {
                 const fileInput = document.getElementById("tpl-file") as HTMLInputElement
                 const nameInput = document.getElementById("tpl-name") as HTMLInputElement
+                const roleInput = document.getElementById("tpl-role") as HTMLSelectElement
+                const stateInput = document.getElementById("tpl-state") as HTMLInputElement
                 if (!fileInput.files?.[0] || !nameInput.value) {
                   alert("Pick a PDF and enter a name")
                   return
@@ -236,6 +243,8 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
                 const form = new FormData()
                 form.append("file", fileInput.files[0])
                 form.append("name", nameInput.value)
+                if (roleInput.value) form.append("role", roleInput.value)
+                if (stateInput.value) form.append("state", stateInput.value)
                 const resp = await fetch("/api/contracts/templates", { method: "POST", body: form })
                 const j = await resp.json()
                 if (!resp.ok) {
@@ -244,6 +253,7 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
                   alert("Template uploaded")
                   fileInput.value = ""
                   nameInput.value = ""
+                  stateInput.value = ""
                 }
               }}
             >

@@ -2,6 +2,8 @@ create table if not exists public.contract_templates (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   storage_path text not null,
+  role text not null default 'seller',
+  state text null,
   placeholders jsonb null,
   created_at timestamptz not null default now()
 );

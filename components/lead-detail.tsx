@@ -56,6 +56,7 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   const [arv, setArv] = useState(lead.arv?.toString() || "")
   const [repairs, setRepairs] = useState(lead.repair_estimate?.toString() || "")
   const [sendingContract, setSendingContract] = useState(false)
+  const [contractRole, setContractRole] = useState<"seller" | "buyer">("seller")
   const [markingSigned, setMarkingSigned] = useState(false)
   const [schedulingSequence, setSchedulingSequence] = useState(false)
   const [sequenceScheduled, setSequenceScheduled] = useState(false)
@@ -228,7 +229,7 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
       const response = await fetch("/api/send-contract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: lead.id }),
+        body: JSON.stringify({ leadId: lead.id, role: contractRole }),
       })
       const data = await response.json()
       if (data.success) {
@@ -385,10 +386,20 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
               </div>
             )}
             {canSendContract && (
-              <Button onClick={handleSendContract} disabled={sendingContract} variant="default">
-                <FileSignature className="mr-2 h-4 w-4" />
-                {sendingContract ? "Sending..." : "Send Contract"}
-              </Button>
+              <>
+                <select
+                  value={contractRole}
+                  onChange={(e) => setContractRole(e.target.value as any)}
+                  className="rounded border border-border bg-background p-2 text-sm"
+                >
+                  <option value="seller">Seller</option>
+                  <option value="buyer">Buyer</option>
+                </select>
+                <Button onClick={handleSendContract} disabled={sendingContract} variant="default">
+                  <FileSignature className="mr-2 h-4 w-4" />
+                  {sendingContract ? "Sending..." : "Send Contract"}
+                </Button>
+              </>
             )}
             {canMarkSigned && (
               <Button

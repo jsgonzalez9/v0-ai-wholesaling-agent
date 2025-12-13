@@ -5,9 +5,21 @@ import { sendSMS } from "@/lib/twilio"
 import { getAgentConfig } from "@/lib/wholesaling-agent"
 import { createServiceClient } from "@/lib/supabase/service"
 
+function extractStateFromAddress(address: string): string | null {
+  try {
+    // Simple heuristic: use last comma-separated token trimmed to 2 letters if looks like state code
+    const parts = address.split(",").map((p) => p.trim())
+    const last = parts[parts.length - 1] || ""
+    const m = last.match(/\b([A-Z]{2})\b/)
+    return m ? m[1] : null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { leadId, contractLink } = await request.json()
+    const { leadId, contractLink, role } = await request.json()
 
     if (!leadId) {
       return NextResponse.json({ error: "Lead ID required" }, { status: 400 })
@@ -27,11 +39,13 @@ export async function POST(request: NextRequest) {
     try {
       if (!finalContractLink) {
         const svc = createServiceClient()
-        const { data: templates } = await svc
+        const state = extractStateFromAddress(lead.address || "") || null
+        let q = svc
           .from("contract_templates")
           .select("*")
-          .order("created_at", { ascending: false })
-          .limit(1)
+          .eq("role", String(role || "seller"))
+        if (state) q = q.eq("state", state)
+        const { data: templates } = await q.order("created_at", { ascending: false }).limit(1)
         const tpl = templates?.[0]
         if (tpl && tpl.storage_path) {
           const fileRes = await svc.storage.from("contracts").download(tpl.storage_path)
@@ -46,9 +60,12 @@ export async function POST(request: NextRequest) {
               const signed = await svc.storage.from("contracts").createSignedUrl(instancePath, 15 * 60)
               if (!signed.error && signed.data?.signedUrl) {
                 finalContractLink = signed.data.signedUrl
-                await svc
-                  .from("contract_instances")
-                  .insert({ lead_id: lead.id, template_id: tpl.id, storage_path: instancePath, status: "sent" })
+                await svc.from("contract_instances").insert({
+                  lead_id: lead.id,
+                  template_id: tpl.id,
+                  storage_path: instancePath,
+                  status: "sent",
+                })
                 await svc
                   .from("leads")
                   .update({ contract_link: finalContractLink, conversation_state: "contract_sent" })
