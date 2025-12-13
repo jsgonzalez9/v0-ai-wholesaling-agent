@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { FAQ_DEFAULT } from "@/lib/faq/default"
 
 export type Intent =
   | "FAQ_PROCESS"
@@ -30,31 +31,35 @@ export function classifyIntent(raw: string): Intent {
 }
 
 export async function lookupCached(intent: Intent, qNorm: string): Promise<{ text: string | null; confidence: number }> {
-  const supabase = await createClient()
-  const { data: exact } = await supabase
-    .from("cached_responses")
-    .select("id,response_text")
-    .eq("intent", intent)
-    .eq("normalized_question", qNorm)
-    .limit(1)
-    .maybeSingle()
-  if (exact?.response_text) {
-    await supabase.from("cached_hits").insert({ cached_response_id: exact.id, question_raw: qNorm, matched_confidence: 1.0 })
-    return { text: exact.response_text, confidence: 1.0 }
-  }
-  // Fallback: simple LIKE match if embedding not present (cheap semantic-ish)
-  const { data: similar } = await supabase
-    .from("cached_responses")
-    .select("id,response_text")
-    .eq("intent", intent)
-    .ilike("normalized_question", `%${qNorm.split(" ").slice(0, 4).join(" ")}%`)
-    .limit(1)
-  if (similar && similar[0]?.response_text) {
-    await supabase
-      .from("cached_hits")
-      .insert({ cached_response_id: similar[0].id, question_raw: qNorm, matched_confidence: 0.85 })
-    return { text: similar[0].response_text, confidence: 0.85 }
-  }
+  try {
+    const supabase = await createClient()
+    const { data: exact } = await supabase
+      .from("cached_responses")
+      .select("id,response_text")
+      .eq("intent", intent)
+      .eq("normalized_question", qNorm)
+      .limit(1)
+      .maybeSingle()
+    if (exact?.response_text) {
+      await supabase.from("cached_hits").insert({ cached_response_id: exact.id, question_raw: qNorm, matched_confidence: 1.0 })
+      return { text: exact.response_text, confidence: 1.0 }
+    }
+    const { data: similar } = await supabase
+      .from("cached_responses")
+      .select("id,response_text,normalized_question")
+      .eq("intent", intent)
+      .limit(5)
+    const s = (similar || []).find((r: any) => String(r.normalized_question || "").includes(qNorm.split(" ").slice(0, 4).join(" ")))
+    if (s?.response_text) {
+      await supabase.from("cached_hits").insert({ cached_response_id: s.id, question_raw: qNorm, matched_confidence: 0.85 })
+      return { text: s.response_text, confidence: 0.85 }
+    }
+  } catch {}
+  const norm = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim()
+  const localExact = FAQ_DEFAULT.find((i) => i.intent === intent && norm(i.question) === qNorm)
+  if (localExact) return { text: localExact.response, confidence: 0.95 }
+  const localSimilar = FAQ_DEFAULT.find((i) => i.intent === intent && norm(i.question).includes(qNorm.split(" ").slice(0, 4).join(" ")))
+  if (localSimilar) return { text: localSimilar.response, confidence: 0.9 }
   return { text: null, confidence: 0 }
 }
 
