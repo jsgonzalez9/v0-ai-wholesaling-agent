@@ -47,6 +47,7 @@ export function CSVImportDialog({ open, onOpenChange, onImportComplete }: CSVImp
       const nameIdx = headers.findIndex((h) => h === "name")
       const phoneIdx = headers.findIndex((h) => h === "phone" || h === "phone_number")
       const addressIdx = headers.findIndex((h) => h === "address")
+      const stateIdx = headers.findIndex((h) => h === "state")
       const notesIdx = headers.findIndex((h) => h === "notes")
       const arvIdx = headers.findIndex((h) => h === "arv")
       const repairIdx = headers.findIndex((h) => h === "repair_estimate" || h === "repairs")
@@ -60,6 +61,19 @@ export function CSVImportDialog({ open, onOpenChange, onImportComplete }: CSVImp
         return
       }
 
+      function extractState(addr: string): string | undefined {
+        try {
+          const parts = addr.split(",").map((p) => p.trim().toUpperCase())
+          for (const p of parts.reverse()) {
+            const m = p.match(/\b([A-Z]{2})\b/)
+            if (m) return m[1]
+          }
+          return undefined
+        } catch {
+          return undefined
+        }
+      }
+
       const leads = lines.slice(1).map((line) => {
         const values = line.split(",").map((v) => v.trim().replace(/"/g, ""))
 
@@ -67,6 +81,7 @@ export function CSVImportDialog({ open, onOpenChange, onImportComplete }: CSVImp
           name: values[nameIdx] || "",
           phone_number: values[phoneIdx] || "",
           address: values[addressIdx] || "",
+          state: stateIdx >= 0 ? values[stateIdx] || undefined : extractState(values[addressIdx] || ""),
           notes: notesIdx >= 0 ? values[notesIdx] : undefined,
           arv: arvIdx >= 0 ? Number.parseInt(values[arvIdx]) || undefined : undefined,
           repair_estimate: repairIdx >= 0 ? Number.parseInt(values[repairIdx]) || undefined : undefined,

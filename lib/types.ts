@@ -18,6 +18,7 @@ export interface Lead {
   name: string
   phone_number: string
   address: string
+  state?: string | null
   notes: string | null
   property_condition: string | null
   motivation: string | null

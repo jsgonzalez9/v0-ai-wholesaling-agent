@@ -8,6 +8,7 @@ export async function createLead(data: {
   name: string
   phone_number: string
   address: string
+  state?: string
   notes?: string
   arv?: number
   repair_estimate?: number
@@ -24,12 +25,28 @@ export async function createLead(data: {
     phone = `+${phone}`
   }
 
+  function extractState(addr: string): string | null {
+    try {
+      const parts = addr.split(",").map((p) => p.trim().toUpperCase())
+      for (const p of parts.reverse()) {
+        const m = p.match(/\b([A-Z]{2})\b/)
+        if (m) return m[1]
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const state = data.state || extractState(data.address || "")
+
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
       name: data.name,
       phone_number: phone,
       address: data.address,
+      state: state || null,
       notes: data.notes || null,
       arv: data.arv || null,
       repair_estimate: data.repair_estimate || null,
@@ -198,6 +215,7 @@ export async function bulkImportLeads(
     name: string
     phone_number: string
     address: string
+    state?: string
     notes?: string
     arv?: number
     repair_estimate?: number
@@ -228,10 +246,25 @@ export async function bulkImportLeads(
       continue
     }
 
+    function extractState(addr: string): string | null {
+      try {
+        const parts = addr.split(",").map((p) => p.trim().toUpperCase())
+        for (const p of parts.reverse()) {
+          const m = p.match(/\b([A-Z]{2})\b/)
+          if (m) return m[1]
+        }
+        return null
+      } catch {
+        return null
+      }
+    }
+    const st = leadData.state || extractState(leadData.address || "")
+
     const { error } = await supabase.from("leads").insert({
       name: leadData.name,
       phone_number: phone,
       address: leadData.address,
+      state: st || null,
       notes: leadData.notes || null,
       arv: leadData.arv || null,
       repair_estimate: leadData.repair_estimate || null,

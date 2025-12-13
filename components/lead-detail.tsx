@@ -595,6 +595,7 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                   onBlur={(e) => handleUpdateLeadMeta({ pipeline_status: e.target.value as any })}
                 />
                 <Input placeholder="Notes" defaultValue={lead.notes || ""} onBlur={(e) => handleUpdateLeadMeta({ notes: e.target.value })} />
+                <Input placeholder="State (e.g. TX)" defaultValue={lead.state || ""} onBlur={(e) => handleUpdateLeadMeta({ state: e.target.value.toUpperCase() })} />
               </div>
               <div className="mt-2">
                 <iframe

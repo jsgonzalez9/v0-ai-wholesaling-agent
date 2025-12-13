@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     try {
       if (!finalContractLink) {
         const svc = createServiceClient()
-        const state = extractStateFromAddress(lead.address || "") || null
+        const state = (lead.state as string | null) || extractStateFromAddress(lead.address || "") || null
         let q = svc
           .from("contract_templates")
           .select("*")
