@@ -38,6 +38,14 @@ export default async function ContractsPage() {
             <Input name="templateId" placeholder="DocuSeal template id or URL (e.g. http://localhost:3010/d/...)" />
             <Button type="submit" variant="outline">Link DocuSeal</Button>
           </form>
+          <form action="/api/send-contract" method="post" className="mt-3 flex flex-wrap items-center gap-2">
+            <select name="role" defaultValue="seller" className="rounded border border-border bg-background p-2 text-sm">
+              <option value="seller">Send Seller Contract</option>
+              <option value="buyer">Send Buyer Contract</option>
+            </select>
+            <Input name="leadId" placeholder="Lead ID" />
+            <Button type="submit">Send Contract</Button>
+          </form>
           <form action="/api/sign/ds/manual-complete" method="post" className="mt-3 flex flex-wrap items-center gap-2">
             <select name="role" defaultValue="seller" className="rounded border border-border bg-background p-2 text-sm">
               <option value="seller">Mark Seller Completed</option>
@@ -73,6 +81,11 @@ export default async function ContractsPage() {
                 <input type="hidden" name="id" value={t.id} />
                 <Button type="submit" variant="destructive">Delete</Button>
               </form>
+              {t.docuseal_direct_link && (
+                <a className="inline-block text-primary underline" href={t.docuseal_direct_link} target="_blank" rel="noreferrer">
+                  Open DocuSeal
+                </a>
+              )}
             </div>
           </div>
         ))}

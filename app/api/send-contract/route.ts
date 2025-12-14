@@ -19,7 +19,21 @@ function extractStateFromAddress(address: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const { leadId, contractLink, role } = await request.json()
+    let leadId: string | null = null
+    let contractLink: string | null = null
+    let role: string | null = null
+    const contentType = request.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      const body = await request.json()
+      leadId = body.leadId
+      contractLink = body.contractLink || null
+      role = body.role || null
+    } else {
+      const form = await request.formData()
+      leadId = String(form.get("leadId") || "")
+      contractLink = (form.get("contractLink") as string) || null
+      role = (form.get("role") as string) || null
+    }
 
     if (!leadId) {
       return NextResponse.json({ error: "Lead ID required" }, { status: 400 })
