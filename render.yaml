@@ -5,9 +5,6 @@ services:
     dockerfilePath: infra/docuseal-render/Dockerfile
     plan: starter
     region: oregon
-    envVars:
-      - key: PORT
-        value: 3000
     disk:
       name: docuseal-data
       mountPath: /data
